@@ -1,0 +1,118 @@
+name: Turkey & Provolone Facebook Bot
+
+on:
+  # Schedule the bot to run at specific times
+  schedule:
+    # Run 4 times per day: 8 AM, 12 PM, 5 PM, 9 PM UTC
+    - cron: '0 8,12,17,21 * * *'
+    
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+    inputs:
+      custom_message:
+        description: 'Custom message to post (optional)'
+        required: false
+        type: string
+      check_comments_only:
+        description: 'Only check comments without posting'
+        required: false
+        type: boolean
+        default: false
+
+  # Run on push to main branch (for testing)
+  push:
+    branches: [ main ]
+    paths:
+      - 'turkey_provolone_bot.py'
+      - '.github/workflows/facebook-bot.yml'
+      - 'requirements.txt'
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+    
+    # Set timeout to prevent hanging jobs
+    timeout-minutes: 10
+    
+    steps:
+    - name: 🛒 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt || pip install requests schedule
+        
+    - name: 🔍 Check comments only
+      if: ${{ github.event.inputs.check_comments_only == 'true' }}
+      env:
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+        RUN_MODE: comments_only
+      run: |
+        python -c "
+from turkey_provolone_bot import TurkeyProvoloneBot
+bot = TurkeyProvoloneBot()
+bot.check_recent_posts_for_comments()
+bot.generate_shop_report()
+"
+        
+    - name: 🦃 Run Turkey & Provolone Bot
+      if: ${{ github.event.inputs.check_comments_only != 'true' }}
+      env:
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+        RUN_MODE: single
+        CUSTOM_MESSAGE: ${{ github.event.inputs.custom_message }}
+      run: |
+        python turkey_provolone_bot.py
+        
+    - name: 📊 Upload activity logs and reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: sandwich-shop-data-${{ github.run_number }}
+        path: |
+          logs/
+          reports/
+          saved_posts/
+          sandwich_shops.json
+        retention-days: 30
+        
+    - name: 📈 Generate summary
+      if: always()
+      run: |
+        echo "## Bot Run Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "logs/sandwich_shop_activity.log" ]; then
+          echo "### Recent Activity" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 10 logs/sandwich_shop_activity.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "sandwich_shops.json" ]; then
+          echo "### Sandwich Shops Count" >> $GITHUB_STEP_SUMMARY
+          echo "Total shops: $(jq '. | length' sandwich_shops.json)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Run completed at: $(date)" >> $GITHUB_STEP_SUMMARY
+        
+  # Optional: Send notification on failure
+  notify-on-failure:
+    needs: post-to-facebook
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📧 Send failure notification
+        run: |
+          echo "Turkey & Provolone Bot failed!"
+          # Add notification logic here (e.g., send email, Slack message, etc.)
