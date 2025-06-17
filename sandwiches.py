@@ -356,7 +356,7 @@ class TurkeyProvoloneBot:
             return random.choice(self.shop_recommendation_posts)
         elif post_type == 'shop_feature' and len(self.sandwich_shops) > 2:
             # Feature a random sandwich shop
-            shop = random.choice([s for s in self.sandwich_shops if s.get('status') == 'verified']])
+            shop = random.choice([s for s in self.sandwich_shops if s.get('status') == 'verified'])
             return {
                 "text": f"🌟 Sandwich Shop Spotlight: {shop['name']} in {shop['location']}! Known for their {shop['specialty']}. Have you tried them? Let us know in the comments! 🥪",
                 "emoji": "👑"
