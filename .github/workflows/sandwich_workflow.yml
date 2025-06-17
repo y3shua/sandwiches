@@ -23,8 +23,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'turkey_provolone_bot.py'
-      - '.github/workflows/facebook-bot.yml'
+      - 'sandwiches.py'
+      - '.github/workflows/sandwich_workflow.yml'
       - 'requirements.txt'
 
 jobs:
