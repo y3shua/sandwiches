@@ -56,12 +56,7 @@ jobs:
         FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
         RUN_MODE: comments_only
       run: |
-        python -c "
-from turkey_provolone_bot import TurkeyProvoloneBot
-bot = TurkeyProvoloneBot()
-bot.check_recent_posts_for_comments()
-bot.generate_shop_report()
-"
+        python -c "from turkey_provolone_bot import TurkeyProvoloneBot; bot = TurkeyProvoloneBot(); bot.check_recent_posts_for_comments(); bot.generate_shop_report()"
         
     - name: 🦃 Run Turkey & Provolone Bot
       if: ${{ github.event.inputs.check_comments_only != 'true' }}
