@@ -13,6 +13,11 @@ from datetime import datetime, timedelta
 import json
 import logging
 
+# make dirs
+os.makedirs("logs", exist_ok=True)
+os.makedirs("reports", exist_ok=True)
+os.makedirs("saved_posts", exist_ok=True)
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
