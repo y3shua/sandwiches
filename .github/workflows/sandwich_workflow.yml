@@ -66,7 +66,7 @@ jobs:
         RUN_MODE: single
         CUSTOM_MESSAGE: ${{ github.event.inputs.custom_message }}
       run: |
-        python turkey_provolone_bot.py
+        python sandiwches.py
         
     - name: 📊 Upload activity logs and reports
       if: always()
