@@ -31,12 +31,8 @@ logger = logging.getLogger(__name__)
 
 class TurkeyProvoloneBot:
     def __init__(self):
-        # Ensure logs directory exists
-        os.makedirs("logs", exist_ok=True)
-        os.makedirs("reports", exist_ok=True)
-        os.makedirs("saved_posts", exist_ok=True)
         
-        # Facebook API credentials
+         # Facebook API credentials
         self.facebook_access_token = os.getenv('FACEBOOK_ACCESS_TOKEN')
         self.facebook_page_id = os.getenv('FACEBOOK_PAGE_ID')
         self.facebook_ready = False
