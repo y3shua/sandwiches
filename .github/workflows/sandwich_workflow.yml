@@ -54,6 +54,7 @@ jobs:
       env:
         FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
         FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         RUN_MODE: comments_only
       run: |
         python -c "from turkey_provolone_bot import TurkeyProvoloneBot; bot = TurkeyProvoloneBot(); bot.check_recent_posts_for_comments(); bot.generate_shop_report()"
@@ -63,6 +64,7 @@ jobs:
       env:
         FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
         FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         RUN_MODE: single
         CUSTOM_MESSAGE: ${{ github.event.inputs.custom_message }}
       run: |
