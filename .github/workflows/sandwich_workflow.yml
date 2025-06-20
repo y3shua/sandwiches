@@ -2,9 +2,9 @@ name: Turkey & Provolone Facebook Bot
 
 on:
   # Schedule the bot to run at specific times
-  #schedule:
+  schedule:
     # Run 4 times per day: 8 AM, 12 PM, 5 PM, 9 PM UTC
-   # - cron: '0 8,12,17,21 * * *'
+    - cron: '0 */6 * * *'
     
   # Allow manual triggering from GitHub UI
   workflow_dispatch:
