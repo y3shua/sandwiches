@@ -1,40 +1,46 @@
-# Turkey & Provolone Facebook Bot 🦃🧀
+# Turkey & Provolone Facebook Bot
 
-A quirky Facebook bot that posts random turkey and provolone sandwich content and tracks community sandwich shop recommendations.
+A quirky Facebook bot that posts turkey and provolone sandwich captions with optional AI-generated images.
 
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 2. Set environment variables:
+
 ```bash
 export FACEBOOK_ACCESS_TOKEN="your_token"
 export FACEBOOK_PAGE_ID="your_page_id"
 ```
 
-## Usage
+3. Optionally configure one or more image providers:
 
-Single post (perfect for GitHub Actions):
 ```bash
-python main.py
+export OPENAI_API_KEY="your_openai_key"
+export STABILITY_API_KEY="your_stability_key"
+export REPLICATE_API_TOKEN="your_replicate_token"
 ```
 
-Scheduled mode (local testing):
+## Usage
+
+Single post, suitable for GitHub Actions:
+
 ```bash
-RUN_MODE=scheduled python main.py
+python sandwiches.py
 ```
 
 ## Features
 
-- Posts random sandwich content every 6 hours
-- Monitors comments for shop recommendations (5+ likes = auto-featured)
-- Generates daily reports of tracked sandwich shops
-- Saves failed posts for retry
+- Posts one sandwich caption per run
+- Generates brainrot/Gen Alpha style captions
+- Generates optional sandwich images with OpenAI, Stability AI, or Replicate
+- Saves failed posts for retry/review
+- Uses bounded downloads, request timeouts, safer logging, and local JSON validation
 
 ## Dependencies
 
-- requests - Facebook API calls
-- schedule - Post scheduling
+- requests - Facebook and image provider API calls
