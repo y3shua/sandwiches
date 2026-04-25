@@ -1,115 +1,171 @@
 name: Turkey & Provolone Facebook Bot
 
 on:
-  # Schedule the bot to run at specific times
-  #schedule:
-    # Run 4 times per day: 8 AM, 12 PM, 5 PM, 9 PM UTC
-   # - cron: '0 */6 * * *'
-    
-  # Allow manual triggering from GitHub UI
   workflow_dispatch:
     inputs:
       custom_message:
-        description: 'Custom message to post (optional)'
+        description: "Custom message to post. Leave blank for a generated caption."
         required: false
         type: string
-      check_comments_only:
-        description: 'Only check comments without posting'
+      validate_only:
+        description: "Validate code and API credentials without posting."
         required: false
         type: boolean
         default: false
 
-  # Run on push to main branch (for testing)
+  # Uncomment after you are comfortable with automated posting.
+  # schedule:
+  #   - cron: "0 14 * * *"
+
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'sandwiches.py'
-      - '.github/workflows/sandwich_workflow.yml'
-      - 'requirements.txt'
+      - "sandwiches.py"
+      - "requirements.txt"
+      - ".github/workflows/sandwich_workflow.yml"
+
+  pull_request:
+    paths:
+      - "sandwiches.py"
+      - "requirements.txt"
+      - ".github/workflows/sandwich_workflow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandwich-bot-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  post-to-facebook:
+  validate:
+    name: Validate code and configuration
     runs-on: ubuntu-latest
-    
-    # Set timeout to prevent hanging jobs
     timeout-minutes: 10
-    
+
     steps:
-    - name: 🛒 Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: 🐍 Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-        cache: 'pip'
-        
-    - name: 📦 Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt || pip install requests schedule
-        
-    - name: 🔍 Check comments only
-      if: ${{ github.event.inputs.check_comments_only == 'true' }}
-      env:
-        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
-        FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        RUN_MODE: comments_only
-      run: |
-        python -c "from turkey_provolone_bot import TurkeyProvoloneBot; bot = TurkeyProvoloneBot(); bot.check_recent_posts_for_comments(); bot.generate_shop_report()"
-        
-    - name: 🦃 Run Turkey & Provolone Bot
-      if: ${{ github.event.inputs.check_comments_only != 'true' }}
-      env:
-        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
-        FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        RUN_MODE: single
-        CUSTOM_MESSAGE: ${{ github.event.inputs.custom_message }}
-      run: |
-        python sandwiches.py
-        
-    - name: 📊 Upload activity logs and reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: sandwich-shop-data-${{ github.run_number }}
-        path: |
-          logs/
-          reports/
-          saved_posts/
-          sandwich_shops.json
-        retention-days: 30
-        
-    - name: 📈 Generate summary
-      if: always()
-      run: |
-        echo "## Bot Run Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f "logs/sandwich_shop_activity.log" ]; then
-          echo "### Recent Activity" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 10 logs/sandwich_shop_activity.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [ -f "sandwich_shops.json" ]; then
-          echo "### Sandwich Shops Count" >> $GITHUB_STEP_SUMMARY
-          echo "Total shops: $(jq '. | length' sandwich_shops.json)" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Run completed at: $(date)" >> $GITHUB_STEP_SUMMARY
-        
-  # Optional: Send notification on failure
-  notify-on-failure:
-    needs: post-to-facebook
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📧 Send failure notification
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
         run: |
-          echo "Turkey & Provolone Bot failed!"
-          # Add notification logic here (e.g., send email, Slack message, etc.)
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Compile Python
+        run: python -m py_compile sandwiches.py
+
+      - name: Validate API credentials
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+        env:
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          import requests
+
+          timeout = (10, 30)
+          missing = [
+              name
+              for name in ("FACEBOOK_ACCESS_TOKEN", "FACEBOOK_PAGE_ID", "OPENAI_API_KEY")
+              if not os.getenv(name)
+          ]
+
+          if missing:
+              print("Missing required secrets: " + ", ".join(missing))
+              sys.exit(1)
+
+          facebook_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
+          facebook_page_id = os.environ["FACEBOOK_PAGE_ID"]
+          facebook_response = requests.get(
+              f"https://graph.facebook.com/v18.0/{facebook_page_id}",
+              headers={"Authorization": f"Bearer {facebook_token}"},
+              timeout=timeout,
+          )
+          if not facebook_response.ok:
+              print(f"Facebook credential validation failed: HTTP {facebook_response.status_code}")
+              sys.exit(1)
+
+          openai_response = requests.get(
+              "https://api.openai.com/v1/models",
+              headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+              timeout=timeout,
+          )
+          if not openai_response.ok:
+              print(f"OpenAI credential validation failed: HTTP {openai_response.status_code}")
+              sys.exit(1)
+
+          page_name = facebook_response.json().get("name", "configured page")
+          print(f"Credentials validated for Facebook page: {page_name}")
+          print("OpenAI API key validated.")
+          PY
+
+  post-to-facebook:
+    name: Generate and post
+    needs: validate
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.validate_only != 'true') || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUN_MODE: single
+          CUSTOM_MESSAGE: ${{ github.event.inputs.custom_message }}
+        run: python sandwiches.py
+
+      - name: Upload logs, images, and failed posts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandwich-bot-data-${{ github.run_number }}
+          path: |
+            logs/
+            reports/
+            saved_posts/
+            generated_images/
+            sandwich_shops.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Bot Run Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f "logs/sandwich_shop_activity.log" ]; then
+            echo "### Recent Activity" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 10 logs/sandwich_shop_activity.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run completed at: $(date -u)" >> "$GITHUB_STEP_SUMMARY"

@@ -33,6 +33,16 @@ Single post, suitable for GitHub Actions:
 python sandwiches.py
 ```
 
+## GitHub Actions
+
+Configure these repository secrets before running the workflow:
+
+- `FB_ACCESS_TOKEN` - Facebook page access token
+- `FB_PAGE_ID` - Facebook page ID
+- `OPENAI_API_KEY` - OpenAI API key for image generation
+
+Use the manual `validate_only` workflow input to verify the Facebook and OpenAI credentials without posting.
+
 ## Features
 
 - Posts one sandwich caption per run
